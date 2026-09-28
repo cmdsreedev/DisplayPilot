@@ -1,0 +1,35 @@
+# Build output and release artifacts
+**/bin/
+**/obj/
+/publish/
+/installer/
+/artifacts/
+/outputs/
+/work/
+*.exe
+*.dll
+*.pdb
+*.msi
+*.zip
+smoke-*.png
+
+# Personal settings, credentials, and local IDE state
+settings.json
+settings.json.*
+*.local.json
+.env
+.env.*
+!.env.example
+*.user
+*.suo
+.vs/
+.vscode/
+.idea/
+*.log
+*.tmp
+*.bak
+*.pfx
+*.p12
+*.key
+.DS_Store
+Thumbs.db

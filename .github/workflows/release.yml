@@ -1,0 +1,53 @@
+name: Release DisplayPilot
+on:
+  push:
+    tags: ['v*']
+permissions:
+  contents: read
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  release:
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    env:
+      RELEASE_TAG: ${{ github.ref_name }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Validate version tag
+        shell: pwsh
+        run: |
+          if ($env:RELEASE_TAG -notmatch '^v\d+\.\d+\.\d+$') { throw 'Use a tag such as v1.0.0.' }
+          "RELEASE_VERSION=$($env:RELEASE_TAG.Substring(1))" >> $env:GITHUB_ENV
+      - name: Install verified Inno Setup compiler
+        shell: pwsh
+        run: |
+          $installer = Join-Path $env:RUNNER_TEMP 'innosetup.exe'
+          Invoke-WebRequest 'https://github.com/jrsoftware/issrc/releases/download/is-6_7_3/innosetup-6.7.3.exe' -OutFile $installer
+          $expected = '9C73C3BAE7ED48D44112A0F48E66742C00090BDB5BEF71D9D3C056C66E97B732'
+          if ((Get-FileHash $installer -Algorithm SHA256).Hash -ne $expected) { throw 'Inno Setup checksum mismatch.' }
+          $compilerDir = Join-Path $env:RUNNER_TEMP 'InnoSetup'
+          $install = Start-Process $installer -ArgumentList "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /CURRENTUSER /DIR=`"$compilerDir`"" -WindowStyle Hidden -Wait -PassThru
+          if ($install.ExitCode -ne 0) { throw 'Inno Setup installation failed.' }
+          "ISCC_PATH=$compilerDir\ISCC.exe" >> $env:GITHUB_ENV
+      - name: Test, publish, and package
+        shell: pwsh
+        run: ./scripts/Build-Release.ps1 -Version $env:RELEASE_VERSION
+      - name: Preserve build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: DisplayPilot-${{ env.RELEASE_VERSION }}
+          path: artifacts/${{ env.RELEASE_VERSION }}/*
+          if-no-files-found: error
+      - name: Publish GitHub release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create $env:RELEASE_TAG "artifacts/$env:RELEASE_VERSION/DisplayPilot-Setup.exe" "artifacts/$env:RELEASE_VERSION/DisplayPilot-win-x64.zip" "artifacts/$env:RELEASE_VERSION/SHA256SUMS.txt" --verify-tag --title "DisplayPilot $env:RELEASE_VERSION" --generate-notes
+          if ($LASTEXITCODE -ne 0) { throw 'Release publication failed.' }
