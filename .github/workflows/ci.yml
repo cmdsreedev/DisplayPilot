@@ -15,3 +15,10 @@ jobs:
           dotnet-version: '10.0.x'
       - run: dotnet run --project tests/DisplayPilot.Tests.csproj -c Release
       - run: dotnet build DeviceDetector.csproj -c Release --warnaserror
+      - name: Check interface and editing flows
+        shell: pwsh
+        run: |
+          $app = Start-Process 'bin/Release/net10.0-windows/DisplayPilot.exe' -ArgumentList '--smoke-test' -WindowStyle Hidden -PassThru
+          if (-not $app.WaitForExit(60000)) { $app.Kill(); throw 'UI checks timed out.' }
+          Get-Content 'bin/Release/net10.0-windows/smoke-result.txt'
+          if ($app.ExitCode -ne 0) { throw 'UI checks failed.' }

@@ -24,6 +24,8 @@ try {
     $unexpected = Get-ChildItem $staging -Recurse -File | Where-Object { $_.Name -match '^(settings\.json|\.env)' -or $_.Extension -in '.pfx','.key' }
     if ($unexpected) { throw 'Personal settings or key material found in publish output.' }
     Copy-Item README.md $staging
+    Copy-Item CHANGELOG.md $staging
+    Copy-Item docs (Join-Path $staging 'docs') -Recurse
     & $InnoCompiler '/Q' "/DMyAppVersion=$Version" "/DPublishDir=$staging" "/O$destination" DisplayPilot.iss
     if ($LASTEXITCODE -ne 0) { throw 'Installer compilation failed.' }
     $archive = Join-Path $destination 'DisplayPilot-win-x64.zip'
